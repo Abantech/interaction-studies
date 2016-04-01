@@ -1,0 +1,15 @@
+{
+  "name": "Jenga-test",
+  "version": "0.0.0",
+  "description": "Jenga-test",
+  "main": "app.js",
+  "author": {
+    "name": "Greg",
+    "email": ""
+  },
+  "dependencies": {
+    "express": "3.4.4",
+    "jade": "*",
+    "stylus": "*"
+  }
+}

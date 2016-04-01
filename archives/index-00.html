@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang=en >
+<head>
+<title>Abantech Read Me</title>
+<meta charset=utf-8 />
+</head>
+<body>
+<script src=http://cdnjs.cloudflare.com/ajax/libs/showdown/0.3.1/showdown.min.js ></script>
+<script>
+// Let's a read me file written in MarkDown be viewable as HTML
+
+	var text = requestFile( 'readme.md' );
+
+	var converter = new Showdown.converter();
+
+	text = converter.makeHtml( text );
+
+	document.body.style.cssText = ' font: bold 12pt monospace; ';
+
+	var info = document.body.appendChild( document.createElement( 'div' ) );
+	info.innerHTML = text;
+
+	function requestFile( fname ) {
+		var xmlHttp = null;
+		xmlHttp = new XMLHttpRequest();
+		xmlHttp.open( 'GET', fname, false );
+		xmlHttp.send( null );
+		return xmlHttp.responseText;
+	}
+
+</script>
+</body>
+</html>

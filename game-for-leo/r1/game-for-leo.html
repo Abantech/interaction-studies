@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang=en >
+<head>
+<title>Game for Leo</title>
+<meta charset=utf-8 />
+<meta name=viewport content=width=device-width,user-scalable=no,minimum-scale=1.0,maximum-scale=1.0 />
+</head>
+<body>
+<script src=http://mrdoob.github.io/three.js/build/three.min.js ></script>
+<script src=http://mrdoob.github.io/three.js/examples/js/controls/OrbitControls.js ></script>
+<script src=http://mrdoob.github.io/three.js/examples/js/libs/stats.min.js ></script>
+<script src=http://js.leapmotion.com/leap-0.6.4.js ></script>
+
+<script>
+//See
+// http://mrdoob.github.io/three.js/examples/#webgl_interactive_raycasting_pointcloud
+
+	var soundPlus = new Audio('http://ie.microsoft.com/testdrive/Graphics/IEBeatz/assets/sounds/mp3/effect.mp3');
+	var soundMinus = new Audio('http://ie.microsoft.com/testdrive/Graphics/IEBeatz/assets/sounds/mp3/bonga.mp3');
+
+
+	var info, renderer, scene, camera, controls, stats, light;
+
+	var group;
+	var cubes = [];
+	var raycaster = new THREE.Raycaster();
+	var points = 0;
+
+	var intersection;
+
+	var fingerlings = {};
+	var handies = {};
+	var loop = {};
+	var winner = false;
+	var prize
+
+	init();
+//	animate();
+
+	function init() {
+		var geometry, material, mesh, helper;
+
+		document.body.style.cssText = 'font: 600 12pt monospace; margin: 0; overflow: hidden' ;
+
+		info = document.body.appendChild( document.createElement( 'div' ) );
+		info.style.cssText = 'left: 20px; position: absolute; top: 0px; width: 100% ';
+		info.innerHTML = '<a href="" ><h1>' + document.title + '</h1></a>' +
+			'<div>' +
+				'<button onclick=drawCubes(3); >3 Cubes</button> ' +
+				'<button onclick=drawCubes(5); >5 Cubes</button> ' +
+				'<button onclick=drawCubes(10); >10 Cubes</button> ' +
+				'<button onclick=drawCubes(20); >20 Cubes</button> ' +
+			'</div>' +
+			'<div id=msg>Touch the cubes and sphere to win points!</div>' +
+			'<div id=handData >Touch the cubes to win points!</div>' +
+			'<div id=fingerData ></div>' +
+		'';
+
+		stats = new Stats();
+		stats.domElement.style.cssText = 'position: absolute; right: 0; top: 0; z-index: 100; ';
+		document.body.appendChild( stats.domElement );
+
+		renderer = new THREE.WebGLRenderer( { alpha: 1, antialias: true, clearColor: 0xffffff }  );
+		renderer.setSize( window.innerWidth, window.innerHeight );
+		renderer.shadowMap.enabled = true;
+		renderer.shadowMapSoft = true;
+		document.body.appendChild( renderer.domElement );
+
+		scene = new THREE.Scene();
+
+		camera = new THREE.PerspectiveCamera( 40, window.innerWidth / window.innerHeight, 1, 5000 );
+		camera.position.set( 0, 800, 500 );
+		scene.add( camera ); // for light to follow
+
+// controls
+		controls = new THREE.OrbitControls( camera );
+		controls.minDistance = 10;
+		controls.maxDistance = 1000;
+		controls.target.y = 250;
+		controls.autoRotate = true;
+
+// Lights
+		light = new THREE.AmbientLight( 0xffffff );
+		scene.add( light );
+
+		light = new THREE.DirectionalLight( 0xffffff, 1 );
+		light.position.set( -500, 500, 500 );
+
+		var d = 100;
+		light.shadowCameraLeft = -d;
+		light.shadowCameraRight = d;
+		light.shadowCameraTop = d;
+		light.shadowCameraBottom = -d;
+
+		light.shadowCameraNear = 200;
+		light.shadowCameraFar = 500;
+
+// can help stop appearance of gridlines in objects with opacity < 1
+		light.shadowBias = -0.0002; // default 0 ~ distance fron corners?
+		light.shadowDarkness = 0.3; // default 0.5
+		light.shadowMapWidth = 2048;  // default 512
+		light.shadowMapHeight = 2048;
+
+		light.castShadow = true;
+//		light.shadowCameraVisible = true;
+		scene.add( light );
+
+		light = new THREE.PointLight( 0xffffff, 1 );
+		light.position = camera.position;
+		camera.add( light );
+
+// ground box
+		var geometry = new THREE.BoxGeometry( 600, 6, 300 );
+		material = new THREE.MeshNormalMaterial();
+		var mesh = new THREE.Mesh( geometry, material );
+		mesh.position.set( 0, -20, 0 );
+		scene.add( mesh );
+
+		helper = new THREE.BoxHelper( mesh );
+		helper.material.color.setRGB( 1, -18.5, 1 );
+		scene.add( helper );
+
+// axes
+		var axis = new THREE.AxisHelper( 250 );
+		scene.add( axis );
+
+		helper = new THREE.BoxHelper( mesh );
+		helper.material.color.setRGB( 1, 0, 1 );
+		scene.add( helper );
+
+
+		group = new THREE.Object3D();
+		scene.add( group );
+
+		drawCubes( 5 );
+
+	}
+
+	function drawCubes( number ) {
+
+// Cubes
+		cubes = [];
+		scene.remove( group );
+		group = new THREE.Object3D();
+		scene.add( group );
+
+		geometry = new THREE.BoxGeometry( 50, 50, 60 );
+
+		for (var i = 0; i < number; i++) {
+
+			material = new THREE.MeshPhongMaterial( {
+				color: 0xffffff, 
+//				ambient: 666666,
+				side: 2
+			} );
+
+			mesh = new THREE.Mesh( geometry, material );
+			mesh.position.set( 500 * Math.random() - 250, 300 * Math.random() + 100, 300 * Math.random() - 150 );
+			mesh.rotation.set( 6.3 * Math.random(), 1.57 * Math.random(), 3.14 * Math.random() );
+			mesh.castShadow = true;
+			mesh.receiveShadow = true;
+			group.add( mesh );
+			cubes.push( mesh );
+
+			helper = new THREE.EdgesHelper( mesh );
+			helper.material.color.setRGB( 1, 0, 0 );
+			group.add( helper );
+
+		}
+
+		points = 0;
+		msg.innerHTML = 'You now have ' + points + ' points';
+		winner = false;
+		scene.remove( prize )
+
+	}
+
+	function findIntersections( ) {
+
+		var index = fingerlings[1].finger;
+		
+		
+		var tip = v( index.tipPosition[0], index.tipPosition[1], index.tipPosition[2] );
+		var pip = v( index.pipPosition[0], index.pipPosition[1], index.pipPosition[2] );
+		var directionVector = tip.sub( pip );
+		raycaster.set( pip, directionVector.normalize() );
+
+		intersects = raycaster.intersectObjects( cubes );
+
+		if ( intersects.length > 0 ) {
+
+			if ( intersects[0].object.material.color.g !== 0 ) {
+
+				intersects[0].object.material.color = new THREE.Color( 0xff0000 );
+				points++;
+				soundMinus.play();
+
+			}
+
+		}
+
+		if ( points < cubes.length ) {
+
+			msg.innerHTML = 'You now have ' + points + ' points';
+
+		} else if ( winner == false ) {
+
+			msg.innerHTML = '<h1>Bingo! You win!</h1>';
+
+soundPlus.play();
+
+			winner = true
+
+			var names = ['pumpkin.js','rubber-duck-10.js','skeleton-left.js'];
+
+			var fname = '../models/' + names[ Math.floor( Math.random() * names.length ) ];
+
+			loader = new THREE.JSONLoader();
+			loader.load( fname, function ( geometry, materials ) {
+
+				material = new THREE.MeshFaceMaterial( materials ) 
+				prize = new THREE.Mesh( geometry, material );
+
+				prize.position.set( 0, 100, -5 );
+				prize.scale.set( 100, 100, 100 );
+
+				prize.castShadow = true;
+				prize.receiveShadow = true;
+				scene.add( prize );
+
+			} );
+
+
+		}
+
+	}
+
+	loop.animate = function( frame ) {
+
+		frame.hands.forEach( function( hand, id ) {
+
+			var handy = ( handies[id] || ( handies[id] = new Handy()) );    
+			handy.outputData( id, hand );
+
+			hand.fingers.forEach( function( finger, id ) {
+
+				var fingerling = ( fingerlings[id] || ( fingerlings[id] = new Fingerling() ) );  
+				fingerling.outputData( id, finger );
+
+			});
+
+		findIntersections();
+
+		});
+
+		renderer.render( scene, camera );
+		controls.update();
+		stats.update();
+
+
+	}
+
+	loop = Leap.loop( loop.animate );
+
+	var Handy = function() {
+		var handy = this;
+//		var msg = handData.appendChild( document.createElement( 'div' ) );
+
+		var geometry = new THREE.BoxGeometry( 50, 20, 50 );
+		var material = new THREE.MeshNormalMaterial();
+		var box = new THREE.Mesh( geometry, material );
+		scene.add( box );
+
+		handy.outputData = function( id, hand  ) {
+
+//			msg.innerHTML = 'Hand id:' + id + ' x:' + hand.stabilizedPalmPosition[0].toFixed(0) + 
+//				' y:' + hand.stabilizedPalmPosition[1].toFixed(0) + ' z:' + hand.stabilizedPalmPosition[2].toFixed(0);
+
+			box.position.set( hand.stabilizedPalmPosition[0], hand.stabilizedPalmPosition[1], hand.stabilizedPalmPosition[2] );
+
+			box.rotation.set( hand.pitch(), -hand.yaw(), hand.roll() );
+
+		};
+
+	};
+
+/*
+// Finger Method
+	var Fingerling = function() {
+
+		var fingerling = this;
+		var msg = fingerData.appendChild( document.createElement( 'div' ) );
+
+		var tip = addPhalange();
+		var dip = addPhalange();
+		var pip = addPhalange();
+		var mcp = addPhalange();
+		var carp = addPhalange();
+
+		fingerling.outputData = function( id, finger ) {
+
+			msg.innerHTML = 'Finger Method: ' +
+				'finger id:' + id + ' tip x:' + finger.tipPosition[0].toFixed(0) + 
+				' y:' + finger.tipPosition[1].toFixed(0) + ' z:' + finger.tipPosition[2].toFixed(0);
+
+			tip.position.set( finger.tipPosition[0], finger.tipPosition[1], finger.tipPosition[2] );
+			dip.position.set( finger.dipPosition[0], finger.dipPosition[1], finger.dipPosition[2] );
+			pip.position.set( finger.pipPosition[0], finger.pipPosition[1], finger.pipPosition[2] );
+			mcp.position.set( finger.mcpPosition[0], finger.mcpPosition[1], finger.mcpPosition[2] );
+			carp.position.set( finger.carpPosition[0], finger.carpPosition[1], finger.carpPosition[2] );
+
+			updatePhalange( tip, dip );
+			updatePhalange( dip, pip );
+			updatePhalange( pip, mcp );
+
+			if ( finger.type > 0 ) {
+
+				updatePhalange( mcp, carp );
+
+			}
+
+		};
+
+	};
+
+	function updatePhalange( phalange, nextPhalange ) {
+
+			phalange.lookAt( nextPhalange.position );
+			length = phalange.position.distanceTo( nextPhalange.position );
+			phalange.translateZ( 0.5 * length );
+			phalange.scale.set( 1, 1, length );
+
+	}
+
+*/
+
+// Bone Method
+	var Fingerling = function() {
+
+		var fingerling = this;
+		var phalanges = [], phalange;
+
+		for (var i = 0; i < 4; i++) {
+
+			phalange = addPhalange();
+			phalanges.push( phalange )
+
+		}
+
+		fingerling.phalanges = phalanges;
+
+//		var msg = fingerData.appendChild( document.createElement( 'div' ) );
+
+		fingerling.outputData = function( id, finger ) {
+
+//			msg.innerHTML = 'Bone Method ~ ' +
+//				'finger tip: ' + id + ' x:' + finger.tipPosition[0].toFixed(0) + 
+//				' y:' + finger.tipPosition[1].toFixed(0) + ' z:' + finger.tipPosition[2].toFixed(0);
+
+//console.log( finger );
+
+			var bone, cen, len;
+
+			for (var i = 0; i < 4; i++) {
+
+				bone = finger.bones[ i ];
+				cen = bone.center();
+				len = bone.length;
+
+				phalange = phalanges[ i ];
+				phalange.position.set( cen[0], cen[1], cen[2] );
+
+				if ( id > 0 || i > 0 ) {
+
+					phalange.scale.z = len;
+
+				}
+
+			}
+
+// Eventually will look at using bone.basis XYZ-axis data; Will it produce more concise code?
+  
+			phalanges[3].lookAt( v( finger.tipPosition[0], finger.tipPosition[1], finger.tipPosition[2]  ) );
+			phalanges[2].lookAt( v( finger.dipPosition[0], finger.dipPosition[1], finger.dipPosition[2]  ) );
+			phalanges[1].lookAt( v( finger.pipPosition[0], finger.pipPosition[1], finger.pipPosition[2]  ) );
+
+			if ( id > 0 ) {
+
+				phalanges[0].lookAt( v( finger.mcpPosition[0], finger.mcpPosition[1], finger.mcpPosition[2]  ) );
+
+			}
+
+			fingerling.finger = finger;
+
+		};
+
+	};
+
+	function addPhalange() {
+
+		geometry = new THREE.BoxGeometry( 20, 20, 1 );
+		material = new THREE.MeshNormalMaterial();
+		phalange = new THREE.Mesh( geometry, material );
+		scene.add( phalange );
+		return phalange;
+
+	}
+
+
+
+	function v(  x, y, z){ return new THREE.Vector3( x, y, z ); }
+
+// This allows us to move even while in an iFrame.
+	Leap.loopController.setBackground(true)
+
+</script>
+</body>
+</html>

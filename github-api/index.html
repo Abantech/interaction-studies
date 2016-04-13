@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang=en >
+<head>
+<title>GitHub Emojis</title>
+<meta charset=utf-8 />
+</head>
+<body>
+<script>
+
+	document.body.style.cssText = ' font: bold 12pt monospace; ';
+
+	var info = document.body.appendChild( document.createElement( 'div' ) );
+	info.innerHTML = '<a href="" ><h1>' + document.title + '</h1></a>' +
+		'<div id=contents ></div>' +
+
+	'';
+
+
+	var xhr = new XMLHttpRequest();
+	xhr.open( 'GET', 'https://api.github.com/emojis', true );
+	xhr.onload = callback;
+	xhr.send( null );
+
+	function callback() {
+
+		var txt = '';
+
+		objects = JSON.parse( xhr.response );
+
+		var keys = Object.keys( objects );
+
+		for ( var i = 0; i < keys.length; i++ ) {
+
+			object = objects[ keys[ i ] ];
+
+			txt += '<img src=' + object + ' title="' + i + '. ' + keys[ i ] + '" > ';
+
+		}
+
+		contents.innerHTML = txt;
+
+	}
+
+
+</script>
+</body>
+</html>
